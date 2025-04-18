@@ -62,6 +62,7 @@ dependencies {
     implementation ("androidx.compose.ui:ui:1.5.0")
     implementation ("androidx.compose.material3:material3:1.0.1")
     implementation ("androidx.compose.ui:ui-tooling-preview:1.5.0")
+    implementation(libs.firebase.auth.ktx)
     debugImplementation ("androidx.compose.ui:ui-tooling:1.5.0")
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)

@@ -34,6 +34,12 @@
             android:theme="@style/Theme.SafeRoute2">
 
         </activity>
+        <activity android:name=".activities.SignUpActivity"
+            android:exported="false">
+        </activity>
+        <activity android:name=".activities.LoginActivity"
+            android:exported="false">
+        </activity>
     </application>
 
 </manifest>

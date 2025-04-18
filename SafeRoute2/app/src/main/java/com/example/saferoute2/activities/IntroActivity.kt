@@ -21,7 +21,7 @@ class IntroActivity : BaseActivity() {
         setContentView(binding.root)
      binding.apply {
          btnComenzar.setOnClickListener{
-             startActivity(Intent(this@IntroActivity,MainActivity::class.java))
+             startActivity(Intent(this@IntroActivity,LoginActivity::class.java))
          }
      }
     }
