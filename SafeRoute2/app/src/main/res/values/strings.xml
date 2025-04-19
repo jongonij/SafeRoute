@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">SafeRoute2</string>
     <string name="comenzar">Comenzar</string>
+    <string name="escribe_tu_contrase_a">Escribe tu Contraseña</string>
+    <string name="escribe_tu_nombre">Escribe tu nombre</string>
+    <string name="escribe_tu_email">Escribe tu Email</string>
+    <string name="nombre_del_solicitante">Nombre del solicitante</string>
 </resources>

@@ -55,6 +55,8 @@ android {
 dependencies {
 
     implementation("androidx.core:core-ktx:1.9.0")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation(libs.play.services.location)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -63,6 +65,8 @@ dependencies {
     implementation ("androidx.compose.material3:material3:1.0.1")
     implementation ("androidx.compose.ui:ui-tooling-preview:1.5.0")
     implementation(libs.firebase.auth.ktx)
+    implementation(libs.play.services.location)
+    implementation(libs.play.services.maps)
     debugImplementation ("androidx.compose.ui:ui-tooling:1.5.0")
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)

@@ -15,12 +15,18 @@ constraintlayout = "2.2.1"
 googleServices = "4.4.2"
 firebaseDatabase = "21.0.0"
 firebaseAuthKtx = "21.0.0"
+playServicesLocation = "21.3.0"
+playServicesMaps = "19.2.0"
+playServicesMapsVersion = "18.0.2"
+
 
 
 
 
 [libraries]
+
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+gms-play-services-maps = { module = "'com.google.android.gms:play-services-maps", version.ref = "playServicesMapsVersion" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -41,6 +47,8 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 google-services = { group = "com.google.gms", name = "google-services", version.ref = "googleServices" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database", version.ref = "firebaseDatabase" }
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuthKtx" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
