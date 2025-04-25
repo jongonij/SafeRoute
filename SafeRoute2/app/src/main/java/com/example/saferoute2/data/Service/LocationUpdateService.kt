@@ -35,8 +35,6 @@ class LocationUpdateService : Service() {
                 .setSmallIcon(android.R.drawable.ic_dialog_map)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build()
-
-
             startForeground(1, notification)
         }
 

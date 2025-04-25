@@ -47,11 +47,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         firebaseAuth = FirebaseAuth.getInstance()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        // Botón para solicitar permisos
-        val requestPermissionButton: Button = findViewById(R.id.btn_location_permission)
-        requestPermissionButton.setOnClickListener {
-            checkLocationPermission()
-        }
+
     }
 
     private fun checkLocationPermission() {

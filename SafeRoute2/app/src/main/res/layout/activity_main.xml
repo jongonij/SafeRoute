@@ -5,13 +5,7 @@
     android:orientation="vertical">
 
     <!-- Botón para solicitar permisos -->
-    <Button
-        android:id="@+id/btn_location_permission"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Solicitar Permisos"
-        android:layout_margin="16dp"
-        android:onClick="requestLocationPermissions"/>
+
 
     <!-- Mapa de Google Maps -->
     <fragment
