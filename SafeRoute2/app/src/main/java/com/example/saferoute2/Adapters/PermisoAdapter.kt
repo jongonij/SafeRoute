@@ -28,7 +28,7 @@ class PermisoAdapter(
         val btnAceptar = view.findViewById<Button>(R.id.btn_aceptar)
         val btnRechazar = view.findViewById<Button>(R.id.btn_rechazar)
 
-        nombreText.text = "Solicitud de: ${permiso.nombreSolicitante}"
+        nombreText.text = "Nombre de usuario: ${permiso.nombreSolicitante}"
 
         // Ocultar botón Aceptar si ya fue aceptado
         btnAceptar.visibility =

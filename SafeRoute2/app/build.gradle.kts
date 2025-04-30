@@ -56,6 +56,9 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.9.0")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:android-maps-utils:3.8.0")
+    implementation ("com.squareup.okhttp3:okhttp:4.12.0")
+
     implementation(libs.play.services.location)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

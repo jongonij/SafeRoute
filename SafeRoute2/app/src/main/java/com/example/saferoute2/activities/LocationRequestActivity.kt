@@ -18,6 +18,7 @@ import com.google.firebase.database.*
 class LocationRequestActivity : AppCompatActivity() {
 
     private lateinit var listView: ListView
+    private lateinit var ubicacionesCompartidasConmigoListView: ListView
     private lateinit var searchView: SearchView
     private lateinit var userListView: ListView
     private lateinit var permisosDb: DatabaseReference
@@ -37,6 +38,8 @@ class LocationRequestActivity : AppCompatActivity() {
         listView = findViewById(R.id.requests_list)
         searchView = findViewById(R.id.search_view)
         userListView = findViewById(R.id.user_list)
+        ubicacionesCompartidasConmigoListView = findViewById(R.id.compartidas_conmigo_list)
+
         userListView.visibility = View.GONE
 
         permisosDb = FirebaseDatabase.getInstance().getReference("permisos")
@@ -45,6 +48,8 @@ class LocationRequestActivity : AppCompatActivity() {
 
         cargarPermisos()
         configurarBuscador()
+        cargarSolicitudesCompartidasConmigo()
+
     }
 
     private fun cargarPermisos() {
@@ -111,7 +116,50 @@ class LocationRequestActivity : AppCompatActivity() {
         }
     }
 
+    private fun cargarSolicitudesCompartidasConmigo() {
+        permisosDb.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val compartidasConmigo = mutableListOf<Permiso>()
 
+                for (permSnapshot in snapshot.children) {
+                    val permiso = permSnapshot.getValue(Permiso::class.java)
+                    permiso?.let {
+                        it.id = permSnapshot.key ?: ""
+                        if (it.solicitanteId == miUid && it.estado == "ACEPTADO") {
+                            compartidasConmigo.add(it)
+                        }
+                    }
+                }
+
+                if (compartidasConmigo.isEmpty()) {
+                    ubicacionesCompartidasConmigoListView.adapter = null
+                    return
+                }
+
+                var cargados = 0
+                for (permiso in compartidasConmigo) {
+                    usersDb.child(permiso.receptorId).child("nombre")
+                        .addListenerForSingleValueEvent(object : ValueEventListener {
+                            override fun onDataChange(data: DataSnapshot) {
+                                permiso.nombreSolicitante = data.getValue(String::class.java) ?: permiso.receptorId
+                                cargados++
+                                if (cargados == compartidasConmigo.size) {
+                                    ubicacionesCompartidasConmigoListView.adapter = PermisoAdapter(
+                                        this@LocationRequestActivity,
+                                        compartidasConmigo,
+                                        soloRechazar = true
+                                    )
+                                }
+                            }
+
+                            override fun onCancelled(error: DatabaseError) {}
+                        })
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {}
+        })
+    }
     private fun configurarBuscador() {
         searchView.setOnQueryTextFocusChangeListener { _, hasFocus ->
             userListView.visibility = if (hasFocus) View.VISIBLE else View.GONE
