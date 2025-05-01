@@ -3,6 +3,7 @@ package com.example.saferoute2.data.location
 import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Location
+import android.os.Looper
 import android.util.Log
 import com.example.saferoute2.data.model.Ubicacion
 import com.google.android.gms.location.*
@@ -29,7 +30,8 @@ class ControladorLocalizacion(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun iniciarActualizacionUbicacion() {
-        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper()
+        )
     }
 
     fun detenerActualizacionUbicacion() {

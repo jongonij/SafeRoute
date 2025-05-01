@@ -9,13 +9,16 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.ui.text.toUpperCase
 import androidx.core.app.ActivityCompat
@@ -34,12 +37,19 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CircleOptions
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.Polyline
 import com.google.android.gms.tasks.OnSuccessListener
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.maps.android.PolyUtil
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
@@ -48,41 +58,38 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var permisosDb: DatabaseReference
     private lateinit var usersDb: DatabaseReference
     private lateinit var miUid: String
+    private val httpClient = OkHttpClient()
     private val LOCATION_PERMISSION_REQUEST_CODE = 100
+    private var rutaActual: Polyline? = null
+    private var marcadorActual: Marker? = null
+    private var currentDestination: LatLng? = null
+    private lateinit var btnCancelNavigation: Button
+
+
 
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Configura el fragmento del mapa
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        // Inicializa FirebaseAuth y FusedLocationProviderClient
         firebaseAuth = FirebaseAuth.getInstance()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         permisosDb = FirebaseDatabase.getInstance().getReference("permisos")
         usersDb = FirebaseDatabase.getInstance().getReference("usuarios")
         miUid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        btnCancelNavigation = findViewById(R.id.btn_cancel_navigation)
+        btnCancelNavigation.setOnClickListener {
+            removeNavigationRoute()
+            btnCancelNavigation.visibility = View.GONE
+        }
 
-        // Cargar las ubicaciones compartidas
         cargarUbicacionesCompartidas()
 
     }
 
-
-    private fun checkLocationPermission() {
-        // Verifica si el permiso ya está concedido
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // Si no se ha concedido el permiso, lo solicitamos
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
-        } else {
-            // Si ya tiene permisos, muestra la ubicación en el mapa
-            Toast.makeText(this, "Permisos de ubicación ya concedidos", Toast.LENGTH_SHORT).show()
-            getCurrentLocation()
-        }
-    }
 
     // Manejo del resultado de la solicitud de permisos
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -166,6 +173,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun mostrarUbicacionEnMapa(ubicacion: LatLng, usuarioId: String) {
         usersDb.child(usuarioId).child("nombre").addListenerForSingleValueEvent(object : ValueEventListener {
+            @SuppressLint("PotentialBehaviorOverride")
             override fun onDataChange(data: DataSnapshot) {
                 val nombreUsuario = data.getValue(String::class.java) ?: "Desconocido"
                 val inicial = nombreUsuario.firstOrNull()?.toString() ?: ""  // Extraer la inicial del nombre
@@ -180,7 +188,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 mMap.addCircle(circleOptions)
 
-                val circleBitmap = createCircleBitmapWithText(inicial)
+                val circleBitmap = crearCirculoBitmapConTexto(inicial)
 
                 // Crear las opciones del marcador
                 val markerOptions = MarkerOptions()
@@ -193,7 +201,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 // El listener de clic en el marcador se configura en el GoogleMap globalmente
                 mMap.setOnMarkerClickListener { clickedMarker ->
                     if (clickedMarker == marker) {
-                        showNavigateButton(ubicacion)
+                        if (btnCancelNavigation.visibility == View.GONE) {
+                            btnCancelNavigation.visibility = View.VISIBLE
+                        }
+                        if (currentDestination != ubicacion) {
+                            currentDestination = ubicacion
+                            showNavigateButton(ubicacion)
+                        } else {
+                            // Si es el mismo destino, eliminamos la ruta
+                            removeNavigationRoute()
+                            btnCancelNavigation.visibility = View.GONE
+
+                        }
                         return@setOnMarkerClickListener true
                     }
                     false
@@ -202,26 +221,90 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
             override fun onCancelled(error: DatabaseError) {}
         })
+
     }
+    private fun removeNavigationRoute() {
+        rutaActual?.remove()
+        marcadorActual?.remove()
 
-    private fun showNavigateButton(ubicacion: LatLng) {
-        // Crear un Intent de navegación con Google Maps
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            // URI para Google Maps con la ubicación deseada
-            data = Uri.parse("google.navigation:q=${ubicacion.latitude},${ubicacion.longitude}")
-            setPackage("com.google.android.apps.maps")
-        }
+        rutaActual = null
+        marcadorActual = null
+        currentDestination = null
 
-        // Verificar si Google Maps está disponible
-        if (intent.resolveActivity(packageManager) != null) {
-            startActivity(intent)
-        } else {
-            Toast.makeText(this, "No se puede abrir Google Maps", Toast.LENGTH_SHORT).show()
-        }
     }
 
 
-    private fun createCircleBitmapWithText(text: String): Bitmap {
+    private fun showNavigateButton(destino: LatLng) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Se requiere permiso de ubicación", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                val origen = LatLng(location.latitude, location.longitude)
+                obtenerRutaDesdeDirectionsAPI(origen, destino)
+            } else {
+                Toast.makeText(this, "No se pudo obtener tu ubicación actual", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    private fun obtenerRutaDesdeDirectionsAPI(origen: LatLng, destino: LatLng) {
+        val apiKey = getString(R.string.google_maps_key) // asegúrate de tenerla en res/values/strings.xml
+        val url = "https://maps.googleapis.com/maps/api/directions/json?" +
+                "origin=${origen.latitude},${origen.longitude}&" +
+                "destination=${destino.latitude},${destino.longitude}&" +
+                "key=$apiKey"
+
+        Thread {
+            try {
+                val request = Request.Builder().url(url).build()
+                val response = httpClient.newCall(request).execute()
+                val json = response.body?.string()
+                val jsonObject = JSONObject(json!!)
+                val routes = jsonObject.getJSONArray("routes")
+                if (routes.length() > 0) {
+                    val polyline = routes.getJSONObject(0)
+                        .getJSONObject("overview_polyline")
+                        .getString("points")
+
+                    val points = PolyUtil.decode(polyline)
+
+                    runOnUiThread {
+                        removeNavigationRoute()
+                        rutaActual = mMap.addPolyline(
+                            com.google.android.gms.maps.model.PolylineOptions()
+                                .addAll(points)
+                                .color(Color.BLUE)
+                                .width(10f)
+                        )
+
+                        marcadorActual = mMap.addMarker(MarkerOptions().position(destino).title("Destino"))
+                        // Establecer la cámara en el origen y destino
+                        val builder = LatLngBounds.Builder()
+                        builder.include(origen)
+                        builder.include(destino)
+                        val bounds = builder.build()
+                        val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 50) // Un poco de espacio alrededor
+                        mMap.animateCamera(cameraUpdate)
+                    }
+                } else {
+                    runOnUiThread {
+                        Toast.makeText(this, "No se encontró ruta", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                runOnUiThread {
+                    Toast.makeText(this, "Error al obtener la ruta", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
+    }
+
+
+
+    private fun crearCirculoBitmapConTexto(text: String): Bitmap {
         val size = 100 // Tamaño del círculo
         val paint = Paint()
         paint.color = Color.BLUE
@@ -260,6 +343,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onStart() {
         super.onStart()
 
@@ -275,9 +359,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun startLocationUpdateService() {
         val serviceIntent = Intent(this, LocationUpdateService::class.java)
         Log.d("LocationService", "Servicio de ubicación en primer plano iniciado")
-        startService(serviceIntent)
+        startForegroundService(serviceIntent)
     }
 }
