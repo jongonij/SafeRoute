@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import com.example.saferoute2.data.location.ControladorLocalizacion
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
 
 class LocationUpdateService : Service() {
 
@@ -24,6 +25,8 @@ class LocationUpdateService : Service() {
         // Asegurar que Firebase esté inicializado
         FirebaseApp.initializeApp(this)
         Log.d(TAG, "Firebase inicializado en el servicio")
+        FirebaseDatabase.getInstance().setPersistenceEnabled(true)
+
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

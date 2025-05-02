@@ -72,24 +72,4 @@ class IntroActivity : BaseActivity() {
         )
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 1001) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Si se concede el permiso de ubicación en primer plano y en segundo plano
-                if (verificarPermisosGPSEnSegundoPlano()) {
-                    controladorLocalizacion.iniciarActualizacionUbicacion()
-                }
-            } else {
-                Log.e("Permisos", "El permiso de ubicación no fue concedido.")
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-
-    }
 }

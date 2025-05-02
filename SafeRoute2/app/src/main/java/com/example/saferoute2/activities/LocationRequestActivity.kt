@@ -12,6 +12,7 @@ import com.example.saferoute2.Adapters.UsuarioAdapter
 import com.example.saferoute2.R
 import com.example.saferoute2.data.model.Permiso
 import com.example.saferoute2.data.model.Usuario
+import com.google.android.gms.maps.model.Marker
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 
@@ -28,6 +29,8 @@ class LocationRequestActivity : AppCompatActivity() {
     private val usuarios = mutableListOf<Usuario>()
     private var usuariosFiltrados = mutableListOf<Usuario>()
     private lateinit var acceptedListView: ListView
+    private val marcadores = mutableMapOf<String, Marker>() // Initialize the map in the activity
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,7 +109,9 @@ class LocationRequestActivity : AppCompatActivity() {
                             listView.adapter = PermisoAdapter(
                                 this@LocationRequestActivity,
                                 permisos,
-                                mostrarSoloRechazar
+                                mostrarSoloRechazar,
+                                marcadores
+
                             )
                         }
                     }
@@ -147,7 +152,9 @@ class LocationRequestActivity : AppCompatActivity() {
                                     ubicacionesCompartidasConmigoListView.adapter = PermisoAdapter(
                                         this@LocationRequestActivity,
                                         compartidasConmigo,
-                                        soloRechazar = true
+                                        soloRechazar = true,
+                                        marcadores = marcadores // Pasar el mapa de marcadores
+
                                     )
                                 }
                             }

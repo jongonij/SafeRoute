@@ -54,7 +54,6 @@ import org.json.JSONObject
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
     private lateinit var firebaseAuth: FirebaseAuth
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var permisosDb: DatabaseReference
     private lateinit var usersDb: DatabaseReference
     private lateinit var miUid: String
@@ -62,8 +61,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private val LOCATION_PERMISSION_REQUEST_CODE = 100
     private var rutaActual: Polyline? = null
     private var marcadorActual: Marker? = null
+    private var markers = mutableMapOf<String, Marker>()
     private var currentDestination: LatLng? = null
     private lateinit var btnCancelNavigation: Button
+    private lateinit var btnGoogleMaps: Button
+
 
 
 
@@ -76,14 +78,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
 
         firebaseAuth = FirebaseAuth.getInstance()
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         permisosDb = FirebaseDatabase.getInstance().getReference("permisos")
         usersDb = FirebaseDatabase.getInstance().getReference("usuarios")
         miUid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         btnCancelNavigation = findViewById(R.id.btn_cancel_navigation)
+        btnGoogleMaps = findViewById(R.id.btn_google_maps)
+        btnGoogleMaps.setOnClickListener {
+            currentDestination?.let { destino ->
+                abrirRutaEnGoogleMaps(destino)
+            } ?: run {
+                Toast.makeText(this, "Selecciona un destino primero", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         btnCancelNavigation.setOnClickListener {
             removeNavigationRoute()
             btnCancelNavigation.visibility = View.GONE
+            btnGoogleMaps.visibility = View.GONE
         }
 
         cargarUbicacionesCompartidas()
@@ -98,7 +109,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Permiso concedido, obtener la ubicación
-                getCurrentLocation()
+                getCurrentLocationFromFirebase()
             } else {
                 // Si el permiso es denegado, mostramos un mensaje y damos la opción de ir a la configuración
                 Toast.makeText(this, "Permiso de ubicación denegado", Toast.LENGTH_SHORT).show()
@@ -113,22 +124,26 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         startActivity(intent)
     }
 
-    private fun getCurrentLocation() {
-        // Verifica si el permiso de ubicación fue concedido
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            // Obtener la última ubicación conocida del usuario
-            fusedLocationClient.lastLocation.addOnSuccessListener(this, OnSuccessListener { location ->
-                if (location != null) {
-                    val currentLocation = LatLng(location.latitude, location.longitude)
-                    mMap.addMarker(MarkerOptions().position(currentLocation).title("Tu Ubicación Actual"))
-                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 15f)) // Ajusta el zoom según sea necesario
-                } else {
-                    Toast.makeText(this, "No se pudo obtener la ubicación actual", Toast.LENGTH_SHORT).show()
+    private fun getCurrentLocationFromFirebase() {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        usersDb.child(uid).child("ubicacionActual")
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val latitud = snapshot.child("latitud").getValue(Double::class.java)
+                    val longitud = snapshot.child("longitud").getValue(Double::class.java)
+                    if (latitud != null && longitud != null) {
+                        val currentLocation = LatLng(latitud, longitud)
+                        mMap.addMarker(MarkerOptions().position(currentLocation).title("Tu Ubicación Actual"))
+                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 15f))
+                    } else {
+                        Toast.makeText(this@MainActivity, "No se pudo obtener la ubicación actual", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Toast.makeText(this@MainActivity, "Error al obtener la ubicación", Toast.LENGTH_SHORT).show()
                 }
             })
-        } else {
-            Toast.makeText(this, "Permiso de ubicación no concedido", Toast.LENGTH_SHORT).show()
-        }
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -142,21 +157,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
     private fun cargarUbicacionesCompartidas() {
-        permisosDb.orderByChild("receptorId").equalTo(miUid)
+        permisosDb.orderByChild("solicitanteId").equalTo(miUid)
             .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     for (permisoSnapshot in snapshot.children) {
                         val permiso = permisoSnapshot.getValue(Permiso::class.java)
                         if (permiso != null && permiso.estado == "ACEPTADO") {
                             // Obtener la ubicación compartida de este permiso
-                            usersDb.child(permiso.solicitanteId).child("ubicacionActual")
+                            usersDb.child(permiso.receptorId).child("ubicacionActual")
                                 .addListenerForSingleValueEvent(object : ValueEventListener {
                                     override fun onDataChange(data: DataSnapshot) {
                                         val latitud = data.child("latitud").getValue(Double::class.java)
                                         val longitud = data.child("longitud").getValue(Double::class.java)
                                         if (latitud != null && longitud != null) {
                                             val ubicacion = LatLng(latitud, longitud)
-                                            mostrarUbicacionEnMapa(ubicacion, permiso.solicitanteId)
+                                            mostrarUbicacionEnMapa(ubicacion, permiso.receptorId)
                                         }
                                     }
                                     override fun onCancelled(error: DatabaseError) {}
@@ -177,7 +192,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun onDataChange(data: DataSnapshot) {
                 val nombreUsuario = data.getValue(String::class.java) ?: "Desconocido"
                 val inicial = nombreUsuario.firstOrNull()?.toString() ?: ""  // Extraer la inicial del nombre
-
                 // Crear un círculo con la inicial en el centro
                 val circleOptions = CircleOptions()
                     .center(ubicacion)
@@ -187,22 +201,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     .fillColor(0x220000FF)
 
                 mMap.addCircle(circleOptions)
-
                 val circleBitmap = crearCirculoBitmapConTexto(inicial)
 
                 // Crear las opciones del marcador
-                val markerOptions = MarkerOptions()
-                    .position(ubicacion)
-                    .icon(BitmapDescriptorFactory.fromBitmap(circleBitmap))
-
-                // Añadir el marcador al mapa
+                val markerOptions = MarkerOptions().position(ubicacion).icon(BitmapDescriptorFactory.fromBitmap(circleBitmap))
                 val marker = mMap.addMarker(markerOptions)
-
+                markers.put(usuarioId, marker!!)
                 // El listener de clic en el marcador se configura en el GoogleMap globalmente
                 mMap.setOnMarkerClickListener { clickedMarker ->
                     if (clickedMarker == marker) {
                         if (btnCancelNavigation.visibility == View.GONE) {
                             btnCancelNavigation.visibility = View.VISIBLE
+                            btnGoogleMaps.visibility = View.VISIBLE
                         }
                         if (currentDestination != ubicacion) {
                             currentDestination = ubicacion
@@ -211,18 +221,31 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                             // Si es el mismo destino, eliminamos la ruta
                             removeNavigationRoute()
                             btnCancelNavigation.visibility = View.GONE
-
+                            btnGoogleMaps.visibility = View.GONE
                         }
                         return@setOnMarkerClickListener true
                     }
                     false
                 }
             }
-
             override fun onCancelled(error: DatabaseError) {}
         })
-
     }
+    private fun abrirRutaEnGoogleMaps(destino: LatLng?) {
+        if (destino == null) {
+            Toast.makeText(this, "Destino no válido", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val uri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${destino.latitude},${destino.longitude}&travelmode=driving")
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+        intent.setPackage("com.google.android.apps.maps") // Asegura que se abra con Google Maps
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivity(intent)
+        } else {
+            Toast.makeText(this, "Google Maps no está instalado", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun removeNavigationRoute() {
         rutaActual?.remove()
         marcadorActual?.remove()
@@ -234,28 +257,31 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
-    private fun showNavigateButton(destino: LatLng) {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Se requiere permiso de ubicación", Toast.LENGTH_SHORT).show()
-            return
-        }
+   private fun showNavigateButton(destino: LatLng) {
+    val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            if (location != null) {
-                val origen = LatLng(location.latitude, location.longitude)
-                obtenerRutaDesdeDirectionsAPI(origen, destino)
-            } else {
-                Toast.makeText(this, "No se pudo obtener tu ubicación actual", Toast.LENGTH_SHORT).show()
+    usersDb.child(uid).child("ubicacionActual")
+        .addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val latitud = snapshot.child("latitud").getValue(Double::class.java)
+                val longitud = snapshot.child("longitud").getValue(Double::class.java)
+                if (latitud != null && longitud != null) {
+                    val origen = LatLng(latitud, longitud)
+                    obtenerRutaDesdeDirectionsAPI(origen, destino)
+                } else {
+                    Toast.makeText(this@MainActivity, "No se pudo obtener tu ubicación actual", Toast.LENGTH_SHORT).show()
+                }
             }
-        }
-    }
+
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(this@MainActivity, "Error al obtener la ubicación", Toast.LENGTH_SHORT).show()
+            }
+        })
+}
     private fun obtenerRutaDesdeDirectionsAPI(origen: LatLng, destino: LatLng) {
         val apiKey = getString(R.string.google_maps_key) // asegúrate de tenerla en res/values/strings.xml
-        val url = "https://maps.googleapis.com/maps/api/directions/json?" +
-                "origin=${origen.latitude},${origen.longitude}&" +
-                "destination=${destino.latitude},${destino.longitude}&" +
-                "key=$apiKey"
-
+        val url = "https://maps.googleapis.com/maps/api/directions/json?" + "origin=${origen.latitude},${origen.longitude}&" +
+                "destination=${destino.latitude},${destino.longitude}&" + "key=$apiKey"
         Thread {
             try {
                 val request = Request.Builder().url(url).build()
@@ -267,25 +293,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     val polyline = routes.getJSONObject(0)
                         .getJSONObject("overview_polyline")
                         .getString("points")
-
                     val points = PolyUtil.decode(polyline)
-
                     runOnUiThread {
                         removeNavigationRoute()
-                        rutaActual = mMap.addPolyline(
-                            com.google.android.gms.maps.model.PolylineOptions()
-                                .addAll(points)
-                                .color(Color.BLUE)
-                                .width(10f)
-                        )
-
+                        currentDestination = destino
+                        rutaActual = mMap.addPolyline(com.google.android.gms.maps.model.PolylineOptions().addAll(points).color(Color.BLUE).width(10f))
                         marcadorActual = mMap.addMarker(MarkerOptions().position(destino).title("Destino"))
                         // Establecer la cámara en el origen y destino
                         val builder = LatLngBounds.Builder()
                         builder.include(origen)
                         builder.include(destino)
                         val bounds = builder.build()
-                        val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 50) // Un poco de espacio alrededor
+                        val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 50)
                         mMap.animateCamera(cameraUpdate)
                     }
                 } else {

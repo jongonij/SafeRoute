@@ -19,10 +19,20 @@
         android:layout_gravity="start|bottom"
         android:layout_margin="16dp"
         android:padding="8dp"
-        android:text="X"
+        android:text="@string/x"
         android:visibility="gone"
         android:backgroundTint="@android:color/holo_red_dark"
         android:textColor="@android:color/white"
         android:elevation="8dp" />
+    <Button
+        android:id="@+id/btn_google_maps"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|bottom"
+        android:visibility="gone"
+        android:layout_margin="16dp"
+        android:padding="8dp"
+        android:text="@string/abrir_en_maps" />
+
 
 </FrameLayout>
