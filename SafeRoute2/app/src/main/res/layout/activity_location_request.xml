@@ -1,83 +1,76 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
 
-    <LinearLayout
-        android:orientation="vertical"
-        android:padding="16dp"
+    <!-- Buscador -->
+    <SearchView
+        android:id="@+id/search_view"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:queryHint="Buscar usuario por nombre..." />
 
-        <!-- Buscador -->
-        <SearchView
-            android:id="@+id/search_view"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:queryHint="Buscar usuario por nombre..." />
+    <!-- Lista de usuarios buscados -->
+    <ListView
+        android:id="@+id/user_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:visibility="gone"
+        android:divider="@android:color/darker_gray"
+        android:dividerHeight="1dp"
+        tools:ignore="NestedScrolling" />
 
-        <!-- Lista de usuarios buscados -->
-        <ListView
-            android:id="@+id/user_list"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:visibility="gone"
-            android:divider="@android:color/darker_gray"
-            android:dividerHeight="1dp"
-            tools:ignore="NestedScrolling" />
+    <!-- Sección: Solicitudes pendientes -->
+    <TextView
+        android:text="Solicitudes pendientes"
+        android:layout_marginTop="16dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:padding="8dp" />
 
-        <!-- Sección: Solicitudes pendientes -->
-        <TextView
-            android:text="Solicitudes pendientes"
-            android:layout_marginTop="16dp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:padding="8dp" />
+    <ListView
+        android:id="@+id/requests_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:divider="@android:color/darker_gray"
+        android:dividerHeight="1dp" />
 
-        <ListView
-            android:id="@+id/requests_list"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:divider="@android:color/darker_gray"
-            android:dividerHeight="1dp" />
+    <!-- Sección: Solicitudes aceptadas -->
+    <TextView
+        android:text="Ubicacion compartida con:"
+        android:layout_marginTop="16dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:padding="8dp" />
 
-        <!-- Sección: Solicitudes aceptadas -->
-        <TextView
-            android:text="Ubicacion compartida con:"
-            android:layout_marginTop="16dp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:padding="8dp" />
+    <ListView
+        android:id="@+id/accepted_requests_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:divider="@android:color/darker_gray"
+        android:dividerHeight="1dp"
+        android:layout_marginBottom="16dp" />
 
-        <ListView
-            android:id="@+id/accepted_requests_list"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:divider="@android:color/darker_gray"
-            android:dividerHeight="1dp"
-            android:layout_marginBottom="16dp"/>
-        <TextView
-            android:text="Ubicaciones que puedes ver"
-            android:layout_marginTop="12dp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textStyle="bold"
-            android:padding="8dp" />
+    <TextView
+        android:text="Ubicaciones que puedes ver"
+        android:layout_marginTop="12dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textStyle="bold"
+        android:padding="8dp" />
 
-        <ListView
-            android:id="@+id/compartidas_conmigo_list"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:divider="@android:color/darker_gray"
-            android:dividerHeight="1dp"/>
+    <ListView
+        android:id="@+id/compartidas_conmigo_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:divider="@android:color/darker_gray"
+        android:dividerHeight="1dp" />
 
-
-
-    </LinearLayout>
-</ScrollView>
+</LinearLayout>

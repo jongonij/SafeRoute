@@ -16,6 +16,20 @@ import com.google.android.gms.maps.model.Marker
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 
+/**
+ * Actividad encargada de gestionar las solicitudes de localización entre usuarios.
+ * Permite:
+ * - Ver solicitudes entrantes (pendientes o aceptadas).
+ * - Ver solicitudes que el usuario ha enviado y han sido aceptadas.
+ * - Buscar usuarios y enviar nuevas solicitudes.
+ *
+ * Usa Firebase Realtime Database para gestionar los permisos y usuarios,
+ * y FirebaseAuth para identificar al usuario actual.
+ *
+ * Adaptadores utilizados:
+ * - [PermisoAdapter] para mostrar permisos.
+ * - [UsuarioAdapter] para mostrar la lista filtrada de usuarios buscados.
+ */
 class LocationRequestActivity : AppCompatActivity() {
 
     private lateinit var listView: ListView
@@ -25,14 +39,15 @@ class LocationRequestActivity : AppCompatActivity() {
     private lateinit var permisosDb: DatabaseReference
     private lateinit var usersDb: DatabaseReference
     private lateinit var miUid: String
-    private val permisos = mutableListOf<Permiso>()
     private val usuarios = mutableListOf<Usuario>()
     private var usuariosFiltrados = mutableListOf<Usuario>()
     private lateinit var acceptedListView: ListView
     private val marcadores = mutableMapOf<String, Marker>() // Initialize the map in the activity
 
-
-
+    /**
+     * Inicializa la actividad configurando vistas, listeners y carga inicial de datos.
+     * Se conecta a Firebase Realtime Database para obtener permisos y usuarios.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_location_request)
@@ -55,6 +70,11 @@ class LocationRequestActivity : AppCompatActivity() {
 
     }
 
+    /**
+     * Carga los permisos desde Firebase y los categoriza entre pendientes y aceptados.
+     * Actualiza las listas correspondientes mediante el adaptador [PermisoAdapter].
+     * Solo se muestran solicitudes dirigidas al usuario actual.
+     */
     private fun cargarPermisos() {
         permisosDb.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -88,16 +108,22 @@ class LocationRequestActivity : AppCompatActivity() {
         })
     }
 
-    private fun cargarNombresYActualizar(permisos: List<Permiso>, listView: ListView, mostrarSoloRechazar: Boolean = false)
-    {
+    /**
+     * Asocia a cada permiso el nombre del solicitante obtenido desde Firebase y
+     * actualiza el adaptador correspondiente una vez todos han sido cargados.
+     *
+     * @param permisos Lista de permisos a mostrar.
+     * @param listView Vista que mostrará los permisos.
+     * @param mostrarSoloRechazar Si es true, solo se mostrará la opción de rechazar (sin aceptar).
+     */
+    private fun cargarNombresYActualizar(permisos: List<Permiso>, listView: ListView, mostrarSoloRechazar: Boolean = false
+    ) {
         val total = permisos.size
         var cargados = 0
-
         if (permisos.isEmpty()) {
             listView.adapter = null
             return
         }
-
         for (permiso in permisos) {
             usersDb.child(permiso.solicitanteId).child("nombre")
                 .addListenerForSingleValueEvent(object : ValueEventListener {
@@ -115,17 +141,20 @@ class LocationRequestActivity : AppCompatActivity() {
                             )
                         }
                     }
-
                     override fun onCancelled(error: DatabaseError) {}
                 })
         }
     }
 
+    /**
+     * Carga desde Firebase los permisos que el usuario ha enviado y han sido aceptados.
+     * Estos representan las ubicaciones que otros han compartido con él.
+     * Se muestra en la lista `ubicacionesCompartidasConmigoListView`.
+     */
     private fun cargarSolicitudesCompartidasConmigo() {
         permisosDb.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val compartidasConmigo = mutableListOf<Permiso>()
-
                 for (permSnapshot in snapshot.children) {
                     val permiso = permSnapshot.getValue(Permiso::class.java)
                     permiso?.let {
@@ -135,18 +164,17 @@ class LocationRequestActivity : AppCompatActivity() {
                         }
                     }
                 }
-
                 if (compartidasConmigo.isEmpty()) {
                     ubicacionesCompartidasConmigoListView.adapter = null
                     return
                 }
-
                 var cargados = 0
                 for (permiso in compartidasConmigo) {
                     usersDb.child(permiso.receptorId).child("nombre")
                         .addListenerForSingleValueEvent(object : ValueEventListener {
                             override fun onDataChange(data: DataSnapshot) {
-                                permiso.nombreSolicitante = data.getValue(String::class.java) ?: permiso.receptorId
+                                permiso.nombreSolicitante =
+                                    data.getValue(String::class.java) ?: permiso.receptorId
                                 cargados++
                                 if (cargados == compartidasConmigo.size) {
                                     ubicacionesCompartidasConmigoListView.adapter = PermisoAdapter(
@@ -167,6 +195,11 @@ class LocationRequestActivity : AppCompatActivity() {
             override fun onCancelled(error: DatabaseError) {}
         })
     }
+    /**
+     * Configura el buscador para mostrar usuarios disponibles al enfocar
+     * el `SearchView`. Filtra usuarios en tiempo real por nombre.
+     * Permite enviar solicitudes a usuarios filtrados.
+     */
     private fun configurarBuscador() {
         searchView.setOnQueryTextFocusChangeListener { _, hasFocus ->
             userListView.visibility = if (hasFocus) View.VISIBLE else View.GONE
@@ -209,7 +242,12 @@ class LocationRequestActivity : AppCompatActivity() {
         })
     }
 
-
+    /**
+     * Envía una solicitud de permiso de localización al usuario indicado,
+     * siempre que no exista ya una solicitud pendiente o aceptada entre ambos.
+     *
+     * @param usuario Usuario al que se le desea solicitar permiso de ubicación.
+     */
     private fun enviarSolicitud(usuario: Usuario) {
         // Verifica si ya existe una solicitud pendiente o aceptada
         permisosDb.orderByChild("solicitanteId").equalTo(miUid)
@@ -269,5 +307,4 @@ class LocationRequestActivity : AppCompatActivity() {
                 }
             })
     }
-
 }

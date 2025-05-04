@@ -14,12 +14,20 @@ import com.example.saferoute2.data.location.ControladorLocalizacion
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
-
+/**
+ * Servicio que se ejecuta en segundo plano para compartir la ubicación del usuario autenticado
+ * a través de Firebase Realtime Database. Funciona como un servicio en primer plano en Android 8.0+.
+ *
+ * Este servicio utiliza la clase [ControladorLocalizacion] para iniciar y detener las actualizaciones
+ * de ubicación.
+ */
 class LocationUpdateService : Service() {
 
     private lateinit var controladorLocalizacion: ControladorLocalizacion
     private val TAG = "LocationService"
-
+    /**
+     * Método llamado al crear el servicio. Inicializa Firebase y habilita la persistencia local.
+     */
     override fun onCreate() {
         super.onCreate()
         // Asegurar que Firebase esté inicializado
@@ -28,7 +36,16 @@ class LocationUpdateService : Service() {
         FirebaseDatabase.getInstance().setPersistenceEnabled(true)
 
     }
-
+    /**
+     * Método llamado cuando se inicia el servicio. Comprueba si el usuario está autenticado.
+     * Si es así, se inicia el servicio en primer plano (foreground service) y comienzan las
+     * actualizaciones de ubicación.
+     *
+     * @param intent El intent que inicia el servicio.
+     * @param flags Información adicional sobre cómo se inicia el servicio.
+     * @param startId Identificador único del inicio del servicio.
+     * @return Constante que indica cómo se debe comportar el sistema si el servicio es eliminado.
+     */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Verificar si el usuario está autenticado
         val usuario = FirebaseAuth.getInstance().currentUser
@@ -67,7 +84,10 @@ class LocationUpdateService : Service() {
         return START_STICKY
     }
 
-
+    /**
+     * Método llamado cuando el servicio se destruye. Detiene las actualizaciones de ubicación
+     * si el controlador fue inicializado.
+     */
     override fun onDestroy() {
         super.onDestroy()
         if (::controladorLocalizacion.isInitialized) {
@@ -75,6 +95,12 @@ class LocationUpdateService : Service() {
         }
         Log.d(TAG, "Servicio de ubicación detenido.")
     }
-
+    /**
+     * Método obligatorio para servicios enlazados. En este caso, el servicio no es enlazado,
+     * por lo tanto retorna null. Aun así, se debe implementar para cumplir con la interfaz de servicio.
+     *
+     * @param intent El intent que se usó para enlazar el servicio.
+     * @return Siempre null, ya que el servicio no permite enlace.
+     */
     override fun onBind(intent: Intent?): IBinder? = null
 }

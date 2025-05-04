@@ -36,6 +36,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.Circle
 import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
@@ -51,6 +52,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 
+/**
+ * Actividad principal que muestra un mapa, maneja permisos, obtiene la ubicación del usuario
+ * y visualiza la ubicación de otros usuarios con quienes se han compartido permisos.
+ */
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
     private lateinit var firebaseAuth: FirebaseAuth
@@ -65,14 +70,30 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var currentDestination: LatLng? = null
     private lateinit var btnCancelNavigation: Button
     private lateinit var btnGoogleMaps: Button
+    private val refreshHandler = android.os.Handler()
+    private val refreshInterval: Long = 15000 // 15 segundos
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            cargarUbicacionesCompartidas()
+            refreshHandler.postDelayed(this, refreshInterval)
+        }
+    }
+    private val marcadoresUsuarios = mutableMapOf<String, Marker>()
+    private val circulosUsuarios = mutableMapOf<String, Circle>()
 
 
 
 
+    /**
+     * Inicializa la actividad, configura el mapa, botones y listeners.
+     */
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        refreshHandler.postDelayed(refreshRunnable, refreshInterval)
+
+
 
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
@@ -102,8 +123,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
-    // Manejo del resultado de la solicitud de permisos
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    /**
+     * Maneja el resultado de la solicitud de permisos de ubicación.
+     *
+     * @param requestCode Código de solicitud.
+     * @param permissions Array de permisos solicitados.
+     * @param grantResults Resultados de los permisos.
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
@@ -118,12 +149,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    /**
+     * Abre la configuración de ubicación de la aplicación en caso de que el permiso sea denegado.
+     */
     private fun openLocationSettings() {
         val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
         intent.data = android.net.Uri.fromParts("package", packageName, null)
         startActivity(intent)
     }
 
+    /**
+     * Obtiene la ubicación actual del usuario desde Firebase y la muestra en el mapa.
+     */
     private fun getCurrentLocationFromFirebase() {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         usersDb.child(uid).child("ubicacionActual")
@@ -133,29 +170,52 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     val longitud = snapshot.child("longitud").getValue(Double::class.java)
                     if (latitud != null && longitud != null) {
                         val currentLocation = LatLng(latitud, longitud)
-                        mMap.addMarker(MarkerOptions().position(currentLocation).title("Tu Ubicación Actual"))
+                        mMap.addMarker(
+                            MarkerOptions().position(currentLocation).title("Tu Ubicación Actual")
+                        )
                         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 15f))
                     } else {
-                        Toast.makeText(this@MainActivity, "No se pudo obtener la ubicación actual", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "No se pudo obtener la ubicación actual",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Toast.makeText(this@MainActivity, "Error al obtener la ubicación", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Error al obtener la ubicación",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             })
     }
 
+    /**
+     * Se ejecuta cuando el mapa está listo. Habilita la ubicación si se tiene permiso.
+     *
+     * @param googleMap Instancia del mapa de Google.
+     */
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
         // Verifica si se otorgó el permiso antes de acceder a la ubicación
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
             mMap.isMyLocationEnabled = true
         } else {
             Toast.makeText(this, "Permiso de ubicación no concedido", Toast.LENGTH_SHORT).show()
         }
     }
+
+    /**
+     * Carga las ubicaciones compartidas por otros usuarios que hayan aceptado compartir su ubicación.
+     */
     private fun cargarUbicacionesCompartidas() {
         permisosDb.orderByChild("solicitanteId").equalTo(miUid)
             .addValueEventListener(object : ValueEventListener {
@@ -167,76 +227,113 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                             usersDb.child(permiso.receptorId).child("ubicacionActual")
                                 .addListenerForSingleValueEvent(object : ValueEventListener {
                                     override fun onDataChange(data: DataSnapshot) {
-                                        val latitud = data.child("latitud").getValue(Double::class.java)
-                                        val longitud = data.child("longitud").getValue(Double::class.java)
+                                        val latitud =
+                                            data.child("latitud").getValue(Double::class.java)
+                                        val longitud =
+                                            data.child("longitud").getValue(Double::class.java)
                                         if (latitud != null && longitud != null) {
                                             val ubicacion = LatLng(latitud, longitud)
                                             mostrarUbicacionEnMapa(ubicacion, permiso.receptorId)
                                         }
                                     }
+
                                     override fun onCancelled(error: DatabaseError) {}
                                 })
                         }
                     }
                 }
+
                 override fun onCancelled(error: DatabaseError) {
-                    Toast.makeText(this@MainActivity, "Error al cargar ubicaciones compartidas", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Error al cargar ubicaciones compartidas",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             })
     }
 
-
+    /**
+     * Muestra en el mapa la ubicación de un usuario junto a su inicial.
+     *
+     * @param ubicacion Coordenadas de la ubicación.
+     * @param usuarioId ID del usuario para identificar su marcador.
+     */
     private fun mostrarUbicacionEnMapa(ubicacion: LatLng, usuarioId: String) {
-        usersDb.child(usuarioId).child("nombre").addListenerForSingleValueEvent(object : ValueEventListener {
-            @SuppressLint("PotentialBehaviorOverride")
-            override fun onDataChange(data: DataSnapshot) {
-                val nombreUsuario = data.getValue(String::class.java) ?: "Desconocido"
-                val inicial = nombreUsuario.firstOrNull()?.toString() ?: ""  // Extraer la inicial del nombre
-                // Crear un círculo con la inicial en el centro
-                val circleOptions = CircleOptions()
-                    .center(ubicacion)
-                    .radius(50.0)
-                    .strokeWidth(2f)
-                    .strokeColor(0xFF0000FF.toInt())
-                    .fillColor(0x220000FF)
+        usersDb.child(usuarioId).child("nombre")
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                @SuppressLint("PotentialBehaviorOverride")
+                override fun onDataChange(data: DataSnapshot) {
+                    val nombreUsuario = data.getValue(String::class.java) ?: "Desconocido"
+                    val inicial = nombreUsuario.firstOrNull()?.toString() ?: ""
 
-                mMap.addCircle(circleOptions)
-                val circleBitmap = crearCirculoBitmapConTexto(inicial)
+                    // Eliminar marcador anterior si existe
+                    marcadoresUsuarios[usuarioId]?.remove()
+                    marcadoresUsuarios.remove(usuarioId)
 
-                // Crear las opciones del marcador
-                val markerOptions = MarkerOptions().position(ubicacion).icon(BitmapDescriptorFactory.fromBitmap(circleBitmap))
-                val marker = mMap.addMarker(markerOptions)
-                markers.put(usuarioId, marker!!)
-                // El listener de clic en el marcador se configura en el GoogleMap globalmente
-                mMap.setOnMarkerClickListener { clickedMarker ->
-                    if (clickedMarker == marker) {
-                        if (btnCancelNavigation.visibility == View.GONE) {
-                            btnCancelNavigation.visibility = View.VISIBLE
-                            btnGoogleMaps.visibility = View.VISIBLE
-                        }
-                        if (currentDestination != ubicacion) {
-                            currentDestination = ubicacion
-                            showNavigateButton(ubicacion)
-                        } else {
-                            // Si es el mismo destino, eliminamos la ruta
-                            removeNavigationRoute()
-                            btnCancelNavigation.visibility = View.GONE
-                            btnGoogleMaps.visibility = View.GONE
-                        }
-                        return@setOnMarkerClickListener true
+                    // Eliminar círculo anterior si existe
+                    circulosUsuarios[usuarioId]?.remove()
+                    circulosUsuarios.remove(usuarioId)
+
+                    // Crear un nuevo círculo
+                    val circleOptions = CircleOptions()
+                        .center(ubicacion)
+                        .radius(50.0)
+                        .strokeWidth(2f)
+                        .strokeColor(0xFF0000FF.toInt())
+                        .fillColor(0x220000FF)
+                    val circle = mMap.addCircle(circleOptions)
+                    circulosUsuarios[usuarioId] = circle
+
+                    // Crear un nuevo marcador con la inicial
+                    val circleBitmap = crearCirculoBitmapConTexto(inicial)
+                    val markerOptions = MarkerOptions()
+                        .position(ubicacion)
+                        .icon(BitmapDescriptorFactory.fromBitmap(circleBitmap))
+                    val marker = mMap.addMarker(markerOptions)
+
+                    if (marker != null) {
+                        marcadoresUsuarios[usuarioId] = marker
                     }
-                    false
+
+                    // Listener de clic
+                    mMap.setOnMarkerClickListener { clickedMarker ->
+                        if (clickedMarker == marker) {
+                            if (btnCancelNavigation.visibility == View.GONE) {
+                                btnCancelNavigation.visibility = View.VISIBLE
+                                btnGoogleMaps.visibility = View.VISIBLE
+                            }
+                            if (currentDestination != ubicacion) {
+                                currentDestination = ubicacion
+                                showNavigateButton(ubicacion)
+                            } else {
+                                removeNavigationRoute()
+                                btnCancelNavigation.visibility = View.GONE
+                                btnGoogleMaps.visibility = View.GONE
+                            }
+                            return@setOnMarkerClickListener true
+                        }
+                        false
+                    }
                 }
-            }
-            override fun onCancelled(error: DatabaseError) {}
-        })
+
+                override fun onCancelled(error: DatabaseError) {}
+            })
     }
+
+
+    /**
+     * Abre Google Maps con una ruta desde la ubicación actual hasta el destino.
+     *
+     * @param destino Coordenadas del destino.
+     */
     private fun abrirRutaEnGoogleMaps(destino: LatLng?) {
         if (destino == null) {
             Toast.makeText(this, "Destino no válido", Toast.LENGTH_SHORT).show()
             return
         }
-        val uri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${destino.latitude},${destino.longitude}&travelmode=driving")
+        val uri =
+            Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${destino.latitude},${destino.longitude}&travelmode=driving")
         val intent = Intent(Intent.ACTION_VIEW, uri)
         intent.setPackage("com.google.android.apps.maps") // Asegura que se abra con Google Maps
         if (intent.resolveActivity(packageManager) != null) {
@@ -246,6 +343,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    /**
+     * Elimina la ruta de navegación y marcador del destino actual.
+     */
     private fun removeNavigationRoute() {
         rutaActual?.remove()
         marcadorActual?.remove()
@@ -256,32 +356,53 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
+    /**
+     * Muestra el botón para navegar hacia un destino y obtiene la ruta usando la API de Google Directions.
+     *
+     * @param destino Coordenadas de destino.
+     */
+    private fun showNavigateButton(destino: LatLng) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
-   private fun showNavigateButton(destino: LatLng) {
-    val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
-
-    usersDb.child(uid).child("ubicacionActual")
-        .addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val latitud = snapshot.child("latitud").getValue(Double::class.java)
-                val longitud = snapshot.child("longitud").getValue(Double::class.java)
-                if (latitud != null && longitud != null) {
-                    val origen = LatLng(latitud, longitud)
-                    obtenerRutaDesdeDirectionsAPI(origen, destino)
-                } else {
-                    Toast.makeText(this@MainActivity, "No se pudo obtener tu ubicación actual", Toast.LENGTH_SHORT).show()
+        usersDb.child(uid).child("ubicacionActual")
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val latitud = snapshot.child("latitud").getValue(Double::class.java)
+                    val longitud = snapshot.child("longitud").getValue(Double::class.java)
+                    if (latitud != null && longitud != null) {
+                        val origen = LatLng(latitud, longitud)
+                        obtenerRutaDesdeDirectionsAPI(origen, destino)
+                    } else {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "No se pudo obtener tu ubicación actual",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
-            }
 
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@MainActivity, "Error al obtener la ubicación", Toast.LENGTH_SHORT).show()
-            }
-        })
-}
+                override fun onCancelled(error: DatabaseError) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Error al obtener la ubicación",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            })
+    }
+
+    /**
+     * Obtiene una ruta entre dos puntos utilizando la API de Google Directions.
+     *
+     * @param origen Coordenadas de origen.
+     * @param destino Coordenadas de destino.
+     */
     private fun obtenerRutaDesdeDirectionsAPI(origen: LatLng, destino: LatLng) {
-        val apiKey = getString(R.string.google_maps_key) // asegúrate de tenerla en res/values/strings.xml
-        val url = "https://maps.googleapis.com/maps/api/directions/json?" + "origin=${origen.latitude},${origen.longitude}&" +
-                "destination=${destino.latitude},${destino.longitude}&" + "key=$apiKey"
+        val apiKey =
+            getString(R.string.google_maps_key) // asegúrate de tenerla en res/values/strings.xml
+        val url =
+            "https://maps.googleapis.com/maps/api/directions/json?" + "origin=${origen.latitude},${origen.longitude}&" +
+                    "destination=${destino.latitude},${destino.longitude}&" + "key=$apiKey"
         Thread {
             try {
                 val request = Request.Builder().url(url).build()
@@ -297,8 +418,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     runOnUiThread {
                         removeNavigationRoute()
                         currentDestination = destino
-                        rutaActual = mMap.addPolyline(com.google.android.gms.maps.model.PolylineOptions().addAll(points).color(Color.BLUE).width(10f))
-                        marcadorActual = mMap.addMarker(MarkerOptions().position(destino).title("Destino"))
+                        rutaActual = mMap.addPolyline(
+                            com.google.android.gms.maps.model.PolylineOptions().addAll(points)
+                                .color(Color.BLUE).width(10f)
+                        )
+                        marcadorActual =
+                            mMap.addMarker(MarkerOptions().position(destino).title("Destino"))
                         // Establecer la cámara en el origen y destino
                         val builder = LatLngBounds.Builder()
                         builder.include(origen)
@@ -321,8 +446,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }.start()
     }
 
-
-
+    /**
+     * Crea un bitmap circular con un texto en el centro.
+     *
+     * @param text Texto a dibujar (por ejemplo, una inicial).
+     * @return Imagen de tipo Bitmap con el círculo y texto.
+     */
     private fun crearCirculoBitmapConTexto(text: String): Bitmap {
         val size = 100 // Tamaño del círculo
         val paint = Paint()
@@ -342,14 +471,17 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return bitmap
     }
 
-
-
-
-
+    /**
+     * Infla el menú superior de opciones.
+     */
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
     }
+
+    /**
+     * Maneja los eventos del menú superior.
+     */
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
@@ -358,10 +490,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 startActivity(intent)
                 true
             }
+
             else -> super.onOptionsItemSelected(item)
         }
     }
 
+    /**
+     * Verifica si el usuario está autenticado y lanza el servicio de ubicación.
+     */
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onStart() {
         super.onStart()
@@ -378,10 +514,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    /**
+     * Inicia el servicio de actualización de ubicación en primer plano.
+     */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun startLocationUpdateService() {
         val serviceIntent = Intent(this, LocationUpdateService::class.java)
         Log.d("LocationService", "Servicio de ubicación en primer plano iniciado")
         startForegroundService(serviceIntent)
     }
+    override fun onDestroy() {
+        super.onDestroy()
+        refreshHandler.removeCallbacks(refreshRunnable)
+    }
+
 }

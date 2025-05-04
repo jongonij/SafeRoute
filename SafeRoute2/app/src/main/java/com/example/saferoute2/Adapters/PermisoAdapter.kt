@@ -10,6 +10,14 @@ import com.example.saferoute2.data.model.Permiso
 import com.google.android.gms.maps.model.Marker
 import com.google.firebase.database.FirebaseDatabase
 
+/**
+ * Adaptador para mostrar una lista de permisos en una vista de lista.
+ *
+ * @param context Contexto de la actividad o fragmento donde se utiliza el adaptador.
+ * @param permisos Lista de objetos Permiso a mostrar.
+ * @param soloRechazar Indica si solo se deben mostrar los botones de rechazo.
+ * @param marcadores Mapa que relaciona los IDs de permisos con marcadores en el mapa.
+ */
 class PermisoAdapter(
     private val context: Context,
     private val permisos: List<Permiso>,
@@ -17,10 +25,34 @@ class PermisoAdapter(
     private val marcadores: MutableMap<String, Marker> // Mapa de ID de permiso a marcador
 
 ) : BaseAdapter() {
-
+    /**
+     * Método que devuelve la cantidad de elementos en la lista de permisos.
+     *
+     * @return Cantidad de permisos.
+     */
     override fun getCount(): Int = permisos.size
+    /**
+     * Método que devuelve el elemento en la posición especificada.
+     *
+     * @param position Posición del elemento a devolver.
+     * @return Objeto Permiso en la posición especificada.
+     */
     override fun getItem(position: Int): Any = permisos[position]
+    /**
+     * Método que devuelve el ID del elemento en la posición especificada.
+     *
+     * @param position Posición del elemento cuyo ID se desea obtener.
+     * @return ID del elemento en la posición especificada.
+     */
     override fun getItemId(position: Int): Long = position.toLong()
+    /**
+     * Método que crea y devuelve la vista para un elemento en la lista de permisos.
+     *
+     * @param position Posición del elemento en la lista.
+     * @param convertView Vista reciclada (si existe).
+     * @param parent Grupo padre al que pertenece la vista.
+     * @return Vista creada o reciclada para el elemento en la posición especificada.
+     */
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
         val permiso = permisos[position]

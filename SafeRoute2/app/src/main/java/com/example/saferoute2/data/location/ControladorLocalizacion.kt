@@ -11,6 +11,12 @@ import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 
+/**
+ * ControladorLocalizacion es una clase que gestiona la obtención y actualización de la ubicación
+ * del usuario utilizando los servicios de localización de Google Play.
+ *
+ * @param context El contexto de la aplicación.
+ */
 class ControladorLocalizacion(private val context: Context) {
 
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
@@ -28,20 +34,35 @@ class ControladorLocalizacion(private val context: Context) {
         }
     }
 
+    /**
+     * Verifica si los permisos de ubicación están concedidos.
+     *
+     * @return true si los permisos están concedidos, false en caso contrario.
+     */
     @SuppressLint("MissingPermission")
     fun iniciarActualizacionUbicacion() {
-        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper()
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest, locationCallback, Looper.getMainLooper()
         )
     }
 
+    /**
+     * Detiene la actualización de la ubicación.
+     */
     fun detenerActualizacionUbicacion() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 
+    /**
+     * Actualiza la ubicación del usuario en Firebase Realtime Database.
+     *
+     * @param location La ubicación actual del usuario.
+     */
     private fun actualizarUbicacionEnFirebase(location: Location) {
         val sharedPrefs = context.getSharedPreferences("SafeRoutePrefs", Context.MODE_PRIVATE)
         val uid = sharedPrefs.getString("user_uid", null) ?: return
-        val ref = FirebaseDatabase.getInstance().getReference("usuarios").child(uid).child("ubicacionActual")
+        val ref = FirebaseDatabase.getInstance().getReference("usuarios").child(uid)
+            .child("ubicacionActual")
 
         val ubicacion = Ubicacion(
             latitud = location.latitude,
