@@ -8,6 +8,17 @@ buildscript {
         classpath ("com.google.gms:google-services:4.3.15")  // Agrega esta línea con la versión correcta del plugin
         classpath ("com.android.tools.build:gradle:8.3.2")  // Agrega esta línea con la versión correcta del plugin
     }
+    allprojects {
+        configurations.all {
+            resolutionStrategy.eachDependency {
+                if (requested.group == "org.jetbrains.kotlin") {
+                    useVersion("1.9.0")
+                    because("Evitar conflictos con Kotlin 2.1.10")
+                }
+            }
+        }
+    }
+
 
 }
 

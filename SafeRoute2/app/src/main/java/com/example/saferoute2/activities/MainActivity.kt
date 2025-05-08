@@ -486,14 +486,17 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_requests -> {
-                val intent = Intent(this, LocationRequestActivity::class.java)
-                startActivity(intent)
+                startActivity(Intent(this, LocationRequestActivity::class.java))
                 true
             }
-
+            R.id.action_incidencias -> {
+                startActivity(Intent(this, IncidenciasActivity::class.java))
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
+
 
     /**
      * Verifica si el usuario está autenticado y lanza el servicio de ubicación.

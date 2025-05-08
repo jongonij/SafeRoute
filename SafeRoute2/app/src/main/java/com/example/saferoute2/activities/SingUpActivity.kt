@@ -32,11 +32,11 @@ class SignUpActivity : AppCompatActivity() {
 
         firebaseAuth = FirebaseAuth.getInstance()
 
-        binding.textView.setOnClickListener {
+        binding.textViewSignIn.setOnClickListener {
             val intent = Intent(this, LoginActivity::class.java)
             startActivity(intent)
         }
-        binding.button.setOnClickListener {
+        binding.buttonSignUp.setOnClickListener {
             val email = binding.emailEt.text.toString()
             val contra = binding.passET.text.toString()
             val nombre = binding.nameEt.text.toString();
