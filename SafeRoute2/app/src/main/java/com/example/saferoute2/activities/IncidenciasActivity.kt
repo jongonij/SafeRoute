@@ -31,21 +31,19 @@ class IncidenciasActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_incidencias)
 
-        // Configuramos el RecyclerView y su adaptador
+
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
         adapter = IncidenciaAdapter()
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = adapter
 
-        // Obtenemos el ViewModel para observar los datos
+
         viewModel = ViewModelProvider(this)[IncidenciaViewModel::class.java]
 
-        // Cada vez que se actualicen las incidencias, se refleja en la lista
         viewModel.incidencias.observe(this) { lista ->
             adapter.submitList(lista)
         }
 
-        // Lanzamos una corrutina para traer las incidencias de la API
         lifecycleScope.launch {
             val nuevasIncidencias = obtenerIncidenciasDesdeApi()
             if (nuevasIncidencias.isNotEmpty()) {
@@ -62,7 +60,6 @@ class IncidenciasActivity : AppCompatActivity() {
         val canalId = "canal_incidencias"
         val manager = getSystemService(NotificationManager::class.java)
 
-        // A partir de Android O es obligatorio registrar el canal de notificación
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val canal = NotificationChannel(
                 canalId,

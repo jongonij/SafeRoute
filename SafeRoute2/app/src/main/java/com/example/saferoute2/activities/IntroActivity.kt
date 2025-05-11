@@ -16,72 +16,81 @@ import com.example.saferoute2.data.location.ControladorLocalizacion
 import com.example.saferoute2.databinding.ActivityIntroBinding
 
 /**
- * Actividad inicial que gestiona:
- * - Configuración de la interfaz edge-to-edge
- * - Verificación y solicitud de permisos de ubicación
- * - Inicio del servicio de actualización de ubicación
- * - Navegación a la actividad de login
- *
- * Esta clase implementa la lógica necesaria para garantizar que la aplicación
- * tenga los permisos requeridos antes de comenzar a rastrear la ubicación.
+ * Primera pantalla que ve el usuario al abrir la app.
+ * Se encarga de:
+ * - Poner la pantalla bonita (modo edge-to-edge)
+ * - Pedir permisos de ubicación (si no los tiene)
+ * - Arrancar el servicio que sigue tu posición
+ * - Llevarte al login cuando tocas el botón
  */
 class IntroActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityIntroBinding
-    private lateinit var controladorLocalizacion: ControladorLocalizacion
+    // Esto es para acceder a los elementos de la pantalla
+    private var _binding: ActivityIntroBinding? = null
+    private val binding get() = _binding!!
 
+    private lateinit var jefeDeUbicacion: ControladorLocalizacion
     /**
-     * Método principal de inicialización de la actividad.
+     * Metodo que se inicializa cuando la se crea la actividad.
      *
-     * @param savedInstanceState Estado previo de la actividad (puede ser nulo)
+     * @param savedInstanceState Estado anterior de la actividad (puede ser nulo)
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Configuración visual edge-to-edge
         window.setFlags(
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
         )
         enableEdgeToEdge()
 
-        binding = ActivityIntroBinding.inflate(layoutInflater)
+        _binding = ActivityIntroBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        controladorLocalizacion = ControladorLocalizacion(this)
+        jefeDeUbicacion = ControladorLocalizacion(this)
 
-        // Inicio del servicio de ubicación persistente
-        Intent(this, LocationUpdateService::class.java).also { intent ->
-            startService(intent)
-            Log.d("IntroActivity", "Servicio de ubicación iniciado")
+        // Arrancamos el servicio que seguirá nuestra ubicación
+        try {
+            val servicio = Intent(this, LocationUpdateService::class.java)
+            startService(servicio)
+            Log.i("IntroActivity", "Servicio de ubicación lanzado")
+        } catch (e: Exception) {
+            Log.e("IntroActivity", "Error al arrancar el servicio", e)
         }
 
-        // Gestión de permisos con flujo alternativo
-        when {
-            tieneTodosLosPermisos() -> controladorLocalizacion.iniciarActualizacionUbicacion()
-            else -> solicitarPermisosRequeridos()
+        // Comprobamos permisos
+        if (tienePermisosDeUbicacion()) {
+            jefeDeUbicacion.iniciarActualizacionUbicacion()
+        } else {
+            pedirPermisos()
         }
 
+        // Cuando tocas el botón "Comenzar"
         binding.btnComenzar.setOnClickListener {
-            startActivity(Intent(this, LoginActivity::class.java))
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+             finish()
         }
     }
 
-    /**
-     * Verifica si se han concedido todos los permisos necesarios.
-     *
-     * @return true si todos los permisos están concedidos
-     */
-    private fun tieneTodosLosPermisos(): Boolean {
-        return verificarPermisoPrimerPlano() && verificarPermisoSegundoPlano()
+
+    override fun onDestroy() {
+        super.onDestroy()
+        _binding = null
     }
 
     /**
-     * Comprueba el permiso de ubicación en primer plano.
-     *
-     * @return Estado del permiso ACCESS_FINE_LOCATION
+     * ¿Tenemos todos los permisos que necesitamos?
      */
-    private fun verificarPermisoPrimerPlano(): Boolean {
+    private fun tienePermisosDeUbicacion(): Boolean {
+        return puedeUbicarEnPrimerPlano() &&
+                (puedeUbicarEnSegundoPlano() || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
+    }
+
+    /**
+     * Permiso para saber dónde está el usuario cuando la app está abierta
+     */
+    private fun puedeUbicarEnPrimerPlano(): Boolean {
         return ActivityCompat.checkSelfPermission(
             this,
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -89,41 +98,41 @@ class IntroActivity : AppCompatActivity() {
     }
 
     /**
-     * Verifica el permiso de ubicación en segundo plano (requerido desde Android 10).
-     *
-     * @return Estado del permiso o true para versiones anteriores
+     * Permiso para seguir al usuario incluso cuando la app está en segundo plano
+     * (Solo necesario a partir de Android 10)
      */
-    private fun verificarPermisoSegundoPlano(): Boolean {
+    private fun puedeUbicarEnSegundoPlano(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ActivityCompat.checkSelfPermission(
                 this,
                 Manifest.permission.ACCESS_BACKGROUND_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         } else {
-            true
+            true // En versiones viejas no hace falta
         }
     }
 
     /**
-     * Solicita al usuario los permisos necesarios según la versión de Android.
-     * Incluye validación para versiones recientes que requieren permiso explícito
-     * para acceso en segundo plano.
+     * Muestra el diálogo para pedir los permisos necesarios
      */
-    private fun solicitarPermisosRequeridos() {
-        val permisosRequeridos = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
+    private fun pedirPermisos() {
+        val permisos = ArrayList<String>()
+        permisos.add(Manifest.permission.ACCESS_FINE_LOCATION)
 
+        // Solo pedimos el de segundo plano si es Android 10+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            permisosRequeridos.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            permisos.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
 
         ActivityCompat.requestPermissions(
             this,
-            permisosRequeridos.toTypedArray(),
-            CODIGO_SOLICITUD_PERMISOS
+            permisos.toTypedArray(),
+            CODIGO_DE_PERMISOS
         )
     }
 
     companion object {
-        private const val CODIGO_SOLICITUD_PERMISOS = 1001
+        // Número aleatorio para identificar la respuesta de los permisos
+        private const val CODIGO_DE_PERMISOS = 1234
     }
 }

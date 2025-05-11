@@ -126,7 +126,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     /**
      * Maneja el resultado de la solicitud de permisos de ubicación.
      *
-     * @param requestCode Código de solicitud.
+     * @param requestCode codigo de solicitud.
      * @param permissions Array de permisos solicitados.
      * @param grantResults Resultados de los permisos.
      */
@@ -142,15 +142,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 // Permiso concedido, obtener la ubicación
                 getCurrentLocationFromFirebase()
             } else {
-                // Si el permiso es denegado, mostramos un mensaje y damos la opción de ir a la configuración
-                Toast.makeText(this, "Permiso de ubicación denegado", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Permiso de ubicación ha sido denegado ", Toast.LENGTH_SHORT).show()
                 openLocationSettings()
             }
         }
     }
 
     /**
-     * Abre la configuración de ubicación de la aplicación en caso de que el permiso sea denegado.
+     * Abre la config de ubicación de la aplicación en caso de que el permiso sea denegado.
+     *
      */
     private fun openLocationSettings() {
         val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
@@ -159,7 +159,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     /**
-     * Obtiene la ubicación actual del usuario desde Firebase y la muestra en el mapa.
+     * Obtiene la ubicación actual del usuario desde la basde de datos de Firebase y la muestra en el mapa.
      */
     private fun getCurrentLocationFromFirebase() {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
@@ -171,13 +171,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     if (latitud != null && longitud != null) {
                         val currentLocation = LatLng(latitud, longitud)
                         mMap.addMarker(
-                            MarkerOptions().position(currentLocation).title("Tu Ubicación Actual")
+                            MarkerOptions().position(currentLocation).title("Tu posicion ")
                         )
                         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 15f))
                     } else {
                         Toast.makeText(
                             this@MainActivity,
-                            "No se pudo obtener la ubicación actual",
+                            "No se pudo obtener la ubicación actual ",
                             Toast.LENGTH_SHORT
                         ).show()
                     }

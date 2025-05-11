@@ -9,9 +9,17 @@ import com.example.saferoute2.databinding.ActivitySingupBinding
 import com.google.firebase.auth.FirebaseAuth
 
 /**
- * Actividad encargada del registro de nuevos usuarios.
- * Permite crear una cuenta mediante correo electrónico y contraseña utilizando Firebase Authentication.
- * También redirige al usuario a la actividad de inicio de sesión tras un registro exitoso.
+ * Pantalla de registro para nuevos usuarios.
+ *
+ * Permite crear una cuenta usando:
+ * - Correo electrónico
+ * - Contraseña
+ * - Nombre de usuario
+ *
+ * Al registrarse correctamente:
+ * 1. Crea la cuenta en Firebase Authentication
+ * 2. Guarda los datos adicionales en Realtime Database
+ * 3. Redirige a la pantalla de login
  */
 class SignUpActivity : AppCompatActivity() {
 
@@ -19,11 +27,11 @@ class SignUpActivity : AppCompatActivity() {
     private lateinit var firebaseAuth: FirebaseAuth
 
     /**
-     * Se ejecuta al crear la actividad. Configura el view binding,
-     * instancia FirebaseAuth y gestiona el registro de nuevos usuarios.
+     * Configuración inicial de la actividad.
      *
-     * @param savedInstanceState Estado previamente guardado de la actividad, si existe.
+     * @param savedInstanceState Estado previo de la actividad (no usado en este caso)
      */
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
