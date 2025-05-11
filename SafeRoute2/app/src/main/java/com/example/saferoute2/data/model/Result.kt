@@ -1,8 +1,7 @@
 package com.example.saferoute2.data.model
 
 data class Result(
-    val _links: Links,
-    val fields: List<Field>,
+
     val include_total: Boolean,
     val limit: Int,
     val records: List<Record>,

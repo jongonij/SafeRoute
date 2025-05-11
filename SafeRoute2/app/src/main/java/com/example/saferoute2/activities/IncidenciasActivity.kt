@@ -1,4 +1,5 @@
 package com.example.saferoute2.activities
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
@@ -16,7 +17,13 @@ import com.example.saferoute2.data.Views.IncidenciaViewModel
 import com.example.saferoute2.data.api.RetrofitServiceFactory
 import com.example.saferoute2.data.model.Record
 import kotlinx.coroutines.launch
+
+/**
+ * Pantalla principal que se encarga de mostrar las incidencias de tráfico en una lista.
+ * También notifica al usuario si se detectan nuevas incidencias desde la API.
+ */
 class IncidenciasActivity : AppCompatActivity() {
+
     private lateinit var viewModel: IncidenciaViewModel
     private lateinit var adapter: IncidenciaAdapter
 
@@ -24,60 +31,70 @@ class IncidenciasActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_incidencias)
 
-
+        // Configuramos el RecyclerView y su adaptador
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
         adapter = IncidenciaAdapter()
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = adapter
 
+        // Obtenemos el ViewModel para observar los datos
         viewModel = ViewModelProvider(this)[IncidenciaViewModel::class.java]
 
-        viewModel.incidencias.observe(this) {
-            adapter.submitList(it)
+        // Cada vez que se actualicen las incidencias, se refleja en la lista
+        viewModel.incidencias.observe(this) { lista ->
+            adapter.submitList(lista)
         }
 
-        // Llamada periódica simulada (reemplaza con WorkManager para producción)
+        // Lanzamos una corrutina para traer las incidencias de la API
         lifecycleScope.launch {
-
-                val nuevas = obtenerIncidenciasDesdeApi()
-                if (nuevas.isNotEmpty()) {
-                    viewModel.actualizarIncidenciasDesdeApi(nuevas)
-                    enviarNotificacion(nuevas.size)
-                }
-
+            val nuevasIncidencias = obtenerIncidenciasDesdeApi()
+            if (nuevasIncidencias.isNotEmpty()) {
+                viewModel.actualizarIncidenciasDesdeApi(nuevasIncidencias)
+                enviarNotificacion(nuevasIncidencias.size)
+            }
         }
     }
 
+    /**
+     * Envía una notificación al usuario indicando la cantidad de incidencias nuevas detectadas.
+     */
     private fun enviarNotificacion(nuevas: Int) {
         val canalId = "canal_incidencias"
         val manager = getSystemService(NotificationManager::class.java)
+
+        // A partir de Android O es obligatorio registrar el canal de notificación
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val canal = NotificationChannel(canalId, "Incidencias", NotificationManager.IMPORTANCE_DEFAULT)
+            val canal = NotificationChannel(
+                canalId,
+                "Incidencias",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
             manager.createNotificationChannel(canal)
         }
 
         val notificacion = NotificationCompat.Builder(this, canalId)
             .setSmallIcon(R.drawable.saferoute_logo_hd)
-            .setContentTitle("Nuevas incidencias")
-            .setContentText("Se detectaron $nuevas nuevas incidencias.")
+            .setContentTitle("Atención")
+            .setContentText("Hay $nuevas incidencia(s) nueva(s) registradas.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
         manager.notify(1, notificacion)
     }
 
+    /**
+     * Consulta la API de incidencias y devuelve los datos obtenidos.
+     * Si algo falla, captura el error y devuelve una lista vacía.
+     */
     private suspend fun obtenerIncidenciasDesdeApi(): List<Record> {
         return try {
             val retrofitService = RetrofitServiceFactory.makeRetrofitService()
-            val response = retrofitService.obtenerIncidencias("9323f68f-9c8f-47e1-884c-d6985b957606")
-            Log.d("INCIDENCIAS", "MOSTRAR INCIDENCIAS: ${response.result.records}")
-            println(response.result.records)
-            response.result.records
+            val respuesta = retrofitService.obtenerIncidencias("9323f68f-9c8f-47e1-884c-d6985b957606")
+            Log.d("INCIDENCIAS", "Datos obtenidos: ${respuesta.result.records}")
+            respuesta.result.records
         } catch (e: Exception) {
-            Log.e("INCIDENCIAS", "Error al obtener incidencias: ${e.message}", e)
+            Log.e("INCIDENCIAS", "Fallo al cargar incidencias: ${e.message}", e)
             emptyList()
         }
     }
-
-
 }

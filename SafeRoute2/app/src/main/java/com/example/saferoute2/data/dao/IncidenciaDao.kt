@@ -12,7 +12,7 @@ import com.example.saferoute2.data.model.Incidencia
 interface IncidenciaDao {
 
     @Query("SELECT * FROM incidencias ORDER BY fecha DESC")
-    fun obtenerTodas(): LiveData<List<Incidencia>>  // Regresa un LiveData con la lista de incidencias
+    fun obtenerTodas(): LiveData<List<Incidencia>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertarTodas(incidencias: List<Incidencia>)
