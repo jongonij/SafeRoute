@@ -10,5 +10,7 @@
         <!-- Fondo y estilo general -->
         <item name="android:windowBackground">?android:attr/colorBackground</item>
         <item name="android:textColor">?android:attr/textColor</item>
+        <item name="android:fontFamily">sans-serif</item>
+
     </style>
 </resources>

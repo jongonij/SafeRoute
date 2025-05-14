@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -14,6 +15,7 @@ import com.example.saferoute2.R
 import com.example.saferoute2.data.Service.LocationUpdateService
 import com.example.saferoute2.data.location.ControladorLocalizacion
 import com.example.saferoute2.databinding.ActivityIntroBinding
+import com.google.firebase.auth.FirebaseAuth
 
 /**
  * Primera pantalla que ve el usuario al abrir la app.
@@ -71,6 +73,22 @@ class IntroActivity : AppCompatActivity() {
             startActivity(intent)
              finish()
         }
+        // Mostrar u ocultar botón de cerrar sesión
+        val usuario = FirebaseAuth.getInstance().currentUser
+        if (usuario != null) {
+            binding.btnCerrarSesion.visibility = View.VISIBLE
+            binding.btnCerrarSesion.setOnClickListener {
+                FirebaseAuth.getInstance().signOut()
+
+                val intent = Intent(this, LoginActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+                finish()
+            }
+        } else {
+            binding.btnCerrarSesion.visibility = View.GONE
+        }
+
     }
 
 
